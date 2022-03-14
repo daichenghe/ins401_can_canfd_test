@@ -26,100 +26,87 @@ class ins401_canfd_driver:
         self.id_name = {}
         self.log_files = {}
         self.path = path
-        print('xxxxxxxxxxxxxxx', self.path)
         with open(json_setting) as json_data:
             self.canfd_setting = json.load(json_data)
         self.id_list = self.canfd_setting["canfd_id"]
     def receive_parse_all(self):
-        print('Open BUSMUST CAN channel using 500kbps baudrate ...')
+        print('open BUSMUST CAN channel using 500&1000kbps baudrate ...')
         bus = can.interface.Bus(bustype='bmcan', channel=0, bitrate=500000, data_bitrate=1000000, tres=True)
         bus.state = BusState.ACTIVE  # or BusState.PASSIVE
-        print('Waiting for RX CAN messages ...')
+        print('waiting for RX CAN messages ...')
         try:
             while True:
                 msg = bus.recv(1)
                 if msg is not None:
-                    #print(msg)
-                    #print(list(msg.data))
                     self.data_queue.put(msg)
         except KeyboardInterrupt:
             pass
 
     def write_titlebar(self, file, output):
         for value in output['signals']:
-            print(value['name']+'('+value['unit']+')')
+            #print(value['name']+'('+value['unit']+')')
             file.write(value['name']+'('+value['unit']+')')
             file.write(",")
         file.write("\n")
 
     def log(self, output, data):
-        print('lllllllllllllllllllllog')
         if output['name'] not in self.log_files.keys():
             self.log_files[output['name']] = open(self.path + '/' + output['name'] + '.csv', 'w')
             self.write_titlebar(self.log_files[output['name']], output)
         data_trans = []
         for i in range(len(data)):
-            offset = float(output['signals'][i]['offset'])
-            factor = float(output['signals'][i]['factor'])
+            try:
+                if output['signals'][i]['is_float'] == True:
+                    offset = float(output['signals'][i]['offset'])
+                    factor = float(output['signals'][i]['factor'])
+                else:
+                    offset = int(output['signals'][i]['offset'])
+                    factor = int(output['signals'][i]['factor'])
+            except Exception as e:
+                print(e, output['is_float'], type(output['is_float']))
             data_trans.append(data[i]*factor + offset)
-        print(data_trans, len(data))
-        print(data_trans[0]*9.7803267714, data_trans[1]*9.7803267714, data_trans[2]*9.7803267714)
-        '''
+
+        #print(len(output['signals']), len(data_trans), len(data))
         buffer = ''
         if output['name'] == 'INSPVAX':
-            buffer = buffer + format(data[0], output['payload'][0]['format']) + ","
-            buffer = buffer + format(data[1], output['payload'][1]['format']) + ","
-            buffer = buffer + format(data[2], output['payload'][2]['format']) + ","
-            buffer = buffer + format(data[3], output['payload'][3]['format']) + ","
-            buffer = buffer + format(data[4], output['payload'][4]['format']) + ","
-            buffer = buffer + format(data[5], output['payload'][5]['format']) + ","
-            buffer = buffer + format(data[6], output['payload'][6]['format']) + ","
-            buffer = buffer + format(data[7], output['payload'][7]['format']) + "\n"
-        '''
-        '''
-        buffer = ''
-        if output['name'] == 's1':
-            buffer = buffer + format(data[0], output['payload'][0]['format']) + ","
-            buffer = buffer + format(data[1], output['payload'][1]['format']) + ","
-            buffer = buffer + format(data[2], output['payload'][2]['format']) + ","
-            buffer = buffer + format(data[3], output['payload'][3]['format']) + ","
-            buffer = buffer + format(data[4], output['payload'][4]['format']) + ","
-            buffer = buffer + format(data[5], output['payload'][5]['format']) + ","
-            buffer = buffer + format(data[6], output['payload'][6]['format']) + ","
-            buffer = buffer + format(data[7], output['payload'][7]['format']) + "\n"
+            buffer = buffer + format(data_trans[0]*9.7803267714, output['signals'][0]['format']) + ","
+            buffer = buffer + format(data_trans[1]*9.7803267714, output['signals'][1]['format']) + ","
+            buffer = buffer + format(data_trans[2]*9.7803267714, output['signals'][2]['format']) + ","
+            buffer = buffer + format(data_trans[3], output['signals'][3]['format']) + ","
+            buffer = buffer + format(data_trans[4], output['signals'][4]['format']) + ","
+            buffer = buffer + format(data_trans[5], output['signals'][5]['format']) + ","
+            buffer = buffer + format(data_trans[6], output['signals'][6]['format']) + ","
+            buffer = buffer + format(data_trans[7], output['signals'][7]['format']) + ","
+            buffer = buffer + format(data_trans[8], output['signals'][8]['format']) + ","
+            buffer = buffer + format(data_trans[9], output['signals'][9]['format']) + ","
+            buffer = buffer + format(data_trans[10], output['signals'][10]['format']) + ","
+            buffer = buffer + format(data_trans[11], output['signals'][11]['format']) + ","
+            buffer = buffer + format(data_trans[12], output['signals'][12]['format']) + ","
+            buffer = buffer + format(data_trans[13], output['signals'][13]['format']) + ","
+            buffer = buffer + format(data_trans[14], output['signals'][14]['format']) + ","
+            buffer = buffer + format(data_trans[15], output['signals'][15]['format']) + ","
+            buffer = buffer + format(data_trans[16], output['signals'][16]['format']) + ","            
+            buffer = buffer + format(data_trans[17], output['signals'][17]['format']) + ","            
+            buffer = buffer + format(data_trans[18], output['signals'][18]['format']) + ","            
+            buffer = buffer + format(data_trans[19], output['signals'][19]['format']) + ","            
+            buffer = buffer + format(data_trans[20], output['signals'][20]['format']) + ","            
+            buffer = buffer + format(data_trans[21], output['signals'][21]['format']) + ","            
+            buffer = buffer + format(data_trans[22], output['signals'][22]['format']) + ","
+            buffer = buffer + format(data_trans[23], output['signals'][23]['format']) + ","
+            buffer = buffer + format(data_trans[24], output['signals'][24]['format']) + ","
+            buffer = buffer + format(data_trans[25], output['signals'][25]['format']) + "\n"              
 
-            ff_buffer = '$GPIMU,'
-            ff_buffer = ff_buffer + format(data[0], output['payload'][0]['format']) + ","
-            ff_buffer = ff_buffer + format(data[1], output['payload'][1]['format']) + "," + "    ,"
-            ff_buffer = ff_buffer + format(data[2], output['payload'][2]['format']) + ","
-            ff_buffer = ff_buffer + format(data[3], output['payload'][3]['format']) + ","
-            ff_buffer = ff_buffer + format(data[4], output['payload'][4]['format']) + ","
-            ff_buffer = ff_buffer + format(data[5], output['payload'][5]['format']) + ","
-            ff_buffer = ff_buffer + format(data[6], output['payload'][6]['format']) + ","
-            ff_buffer = ff_buffer + format(data[7], output['payload'][7]['format']) + "\n"
-            self.f_process.write(ff_buffer)
+        self.log_files[output['name']].write(buffer)
 
-            e_buffer = ''
-            e_buffer = e_buffer + format(data[0], output['payload'][0]['format']) + ","
-            e_buffer = e_buffer + format(data[1], output['payload'][1]['format']) + "," + "    ,"
-            e_buffer = e_buffer + format(data[2], output['payload'][2]['format']) + ","
-            e_buffer = e_buffer + format(data[3], output['payload'][3]['format']) + ","
-            e_buffer = e_buffer + format(data[4], output['payload'][4]['format']) + ","
-            e_buffer = e_buffer + format(data[5], output['payload'][5]['format']) + ","
-            e_buffer = e_buffer + format(data[6], output['payload'][6]['format']) + ","
-            e_buffer = e_buffer + format(data[7], output['payload'][7]['format']) + "\n"
-            self.f_imu.write(e_buffer)
-        '''
     def openrtk_unpack_output_packet(self, output, payload):
         fmt = self.pkfmt[output['name']]
         len_fmt = fmt['len_b']
         pack_fmt = fmt['pack']
-        input('')
-        print(list(payload))
+        #print(list(payload))
         try:
             b = struct.pack(len_fmt, *payload)
             data = struct.unpack(pack_fmt, b)
-            print(data)
+            print('time: ',data[10])
             self.log(output, data)
         except Exception as e:
             print("error happened when decode the {0} {1}".format(output['name'], e))
@@ -128,6 +115,8 @@ class ins401_canfd_driver:
         output = next((x for x in self.canfd_setting['messages'] if x['id'] == can_id), None)
         if output != None:
             valid_len = output["valid_len"]
+            data_hex = [hex(ele) for ele in data]
+            
             self.openrtk_unpack_output_packet(output, data[0:valid_len])
         else:
             print('no packet type {0} in json'.format(packet_type))
@@ -139,7 +128,6 @@ class ins401_canfd_driver:
         for inode in self.canfd_setting['messages']:
             length = 0
             pack_fmt = '>'
-            print(inode["id"], inode["name"])
             self.id_name[inode["id"]] = inode["name"]
             for value in inode['signals']:
                 if value['type'] == 'float':
@@ -175,13 +163,14 @@ class ins401_canfd_driver:
                 elif value['type'] == 'uint8':
                     pack_fmt += 'B'
                     length += 1
+                else:
+                    print('error', value['type'], value)
             len_fmt = '{0}B'.format(length)
             fmt_dic = collections.OrderedDict()
             fmt_dic['len'] = length
             fmt_dic['len_b'] = len_fmt
             fmt_dic['pack'] = pack_fmt
             self.pkfmt[inode['name']] = fmt_dic
-        print(self.id_name)
         while True:
             if self.data_queue.empty():
                 time.sleep(0.001)
