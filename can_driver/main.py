@@ -17,8 +17,11 @@ import json
 import math
 import threading
 import signal
+from ntrip import NTRIPClient
+from core import EventBase
+import time
 
-class ins401_canfd_driver:
+class ins401_canfd_driver(EventBase):
     def __init__(self, path, json_setting):
         self.rawdata = []
         self.pkfmt = {}
@@ -26,17 +29,39 @@ class ins401_canfd_driver:
         self.id_name = {}
         self.log_files = {}
         self.path = path
+        self.bus = can.interface.Bus(bustype='bmcan', channel=0, bitrate=500000, data_bitrate=1000000, tres=True)
+        self.bus.state = BusState.ACTIVE
+        time.sleep(0.1)
+        self.bus = can.interface.Bus(bustype='bmcan', channel=0, bitrate=500000, data_bitrate=1000000, tres=True)
+        self.bus.state = BusState.ACTIVE
+        time.sleep(0.1)
+        self.bus = can.interface.Bus(bustype='bmcan', channel=0, bitrate=500000, data_bitrate=1000000, tres=True)        
+        self.bus.state = BusState.ACTIVE
+        time.sleep(0.1)
+        '''
+        print('xxxxxxxxxxxxxxxxxxxxxx', dir(self.bus))
+        msg = can.Message(arbitration_id=0x508,
+                          data=[0, 25, 0, 1, 3, 1, 4, 1],
+                          is_extended_id=False)
+
+        try:
+            self.bus.send(msg, timeout=None)
+            print("Message sent on {}".format(self.bus.channel_info))
+        except can.CanError:
+            print("Message NOT sent")        
+        '''
+        
         with open(json_setting) as json_data:
             self.canfd_setting = json.load(json_data)
         self.id_list = self.canfd_setting["canfd_id"]
     def receive_parse_all(self):
         print('open BUSMUST CAN channel using 500&1000kbps baudrate ...')
-        bus = can.interface.Bus(bustype='bmcan', channel=0, bitrate=500000, data_bitrate=1000000, tres=True)
-        bus.state = BusState.ACTIVE  # or BusState.PASSIVE
+
+        #self.bus.state = BusState.ACTIVE  # or BusState.PASSIVE
         print('waiting for RX CAN messages ...')
         try:
             while True:
-                msg = bus.recv(1)
+                msg = self.bus.recv(1)
                 if msg is not None:
                     self.data_queue.put(msg)
         except KeyboardInterrupt:
@@ -51,7 +76,8 @@ class ins401_canfd_driver:
 
     def log(self, output, data):
         if output['name'] not in self.log_files.keys():
-            self.log_files[output['name']] = open(self.path + '/' + output['name'] + '.csv', 'w')
+            fname_time = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + '_'
+            self.log_files[output['name']] = open(self.path + '/' + fname_time + output['name'] + '.csv', 'w')
             self.write_titlebar(self.log_files[output['name']], output)
         data_trans = []
         for i in range(len(data)):
@@ -106,7 +132,7 @@ class ins401_canfd_driver:
         try:
             b = struct.pack(len_fmt, *payload)
             data = struct.unpack(pack_fmt, b)
-            print('time: ',data[10])
+            # print('time: ',data[10])
             self.log(output, data)
         except Exception as e:
             print("error happened when decode the {0} {1}".format(output['name'], e))
@@ -124,6 +150,8 @@ class ins401_canfd_driver:
     def start_pasre(self):
         thread = threading.Thread(target=self.receive_parse_all)
         thread.start()
+        thead = threading.Thread(target=self.ntrip_client_thread)
+        thead.start()
         self.canfd_id = self.canfd_setting['canfd_id']
         for inode in self.canfd_setting['messages']:
             length = 0
@@ -164,7 +192,7 @@ class ins401_canfd_driver:
                     pack_fmt += 'B'
                     length += 1
                 else:
-                    print('error', value['type'], value)
+                    pass
             len_fmt = '{0}B'.format(length)
             fmt_dic = collections.OrderedDict()
             fmt_dic['len'] = length
@@ -181,6 +209,48 @@ class ins401_canfd_driver:
                 #print(data.arbitration_id, data.dlc)
                 if data.arbitration_id in self.id_list:
                     self.parse_output_packet_payload(data.arbitration_id, data.data)
+
+    def ntrip_client_thread(self):
+        self.ntrip_client = NTRIPClient(self.canfd_setting)
+        self.ntrip_client.on('base', self.send_base_data)
+        self.ntrip_client.run()
+
+    def send_base_data(self, data):
+        base_data = list(data)
+        all_data_len = len(base_data)
+        len_base_data = all_data_len
+        index = 0
+        data_to_send = [0 for i in range(64)]
+        while all_data_len > 0:
+            if all_data_len < 62:
+                data_len = len_base_data - index
+                data_len_l = data_len & 0xff
+                data_len_h = (data_len >> 8) & 0xff
+                # data_len = struct.pack('>BB', all_data_len - index)
+                data_to_send[0:2] = [data_len_h, data_len_l]
+                data_to_send[2:] = base_data[index:]
+                #data_to_send = base_data[index:]
+            else:
+                data_len = 62
+                data_len_l = data_len & 0xff
+                data_len_h = (data_len >> 8) & 0xff
+                data_to_send[0:2] = [data_len_h, data_len_l]
+                data_to_send[2:] = base_data[index:index+62]
+            msg = can.Message(arbitration_id=0x508,
+                              data=data_to_send,
+                              is_extended_id=False,
+                              is_fd=True)
+            try:
+                self.bus.send(msg, timeout=None)
+
+            except can.CanError:
+                print("message cant sent")
+            pass
+            all_data_len-= 62
+            index+= 62
+            #print(data_to_send)
+            sys.stdout.write("\rsend base data len {0}".format(len_base_data))
+            #print('test', len(base_data), all_data_len, index)
 
 
 def mkdir(file_path):

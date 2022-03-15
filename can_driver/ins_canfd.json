@@ -1,5 +1,13 @@
 {
 	"canfd_id": [1280, 1281],
+	"ntrip":{
+		"host": "58.215.20.43",
+		"port": 2201,
+		"mountPoint": "WX02",
+		"userAgent": "NTRIP Aceinna CloudRTK 1.0",
+		"username": "daich",
+		"password": "TEL8IOZTBJVVJ0IT"
+	},
     "messages": [
         {
             "id": 1280,
